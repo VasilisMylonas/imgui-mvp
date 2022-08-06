@@ -1,20 +1,22 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <stdexcept>
 
 class Image
 {
 public:
     Image(const std::string &path);
+    Image(const std::vector<unsigned char> &bytes);
     ~Image();
 
-    unsigned width() const
+    int width() const
     {
         return m_width;
     }
 
-    unsigned height() const
+    int height() const
     {
         return m_height;
     }
@@ -30,8 +32,9 @@ public:
     }
 
 private:
-    unsigned m_width;
-    unsigned m_height;
+    void upload(void *data);
+    int m_width;
+    int m_height;
     unsigned m_texture;
     std::string m_path;
 };
