@@ -6,7 +6,7 @@
 
 class App : public Application
 {
-    virtual glfw::Window Init() override
+    virtual glfw::Window init() override
     {
         // Config
         ImGuiIO &io = ImGui::GetIO();
@@ -31,7 +31,7 @@ class App : public Application
     //  std::filesystem::path currentDir = std::filesystem::current_path();
     // bool showHiddenFiles = false;
 
-    virtual void Render()
+    virtual void render()
     {
         // DrawMenu();
         // DrawFileManager();
@@ -132,5 +132,5 @@ class App : public Application
 int main()
 {
     App app;
-    app.Run();
+    app.run();
 }

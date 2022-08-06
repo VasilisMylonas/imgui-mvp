@@ -1,18 +1,18 @@
-#include "glad/glad.h"
+#include <glad/glad.h>
 
 #include "Application.hpp"
 
-#include "backends/imgui_impl_opengl3.h"
-#include "backends/imgui_impl_glfw.h"
+#include <backends/imgui_impl_opengl3.h>
+#include <backends/imgui_impl_glfw.h>
 
-void Application::Run()
+void Application::run()
 {
     // Imgui init
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
     // Window creation
-    auto window = Init();
+    auto window = init();
 
     // OpenGL init
     glfw::makeContextCurrent(window);
@@ -33,7 +33,7 @@ void Application::Run()
         ImGui::NewFrame();
 
         // User render
-        Render();
+        render();
 
         // Render
         ImGui::Render();

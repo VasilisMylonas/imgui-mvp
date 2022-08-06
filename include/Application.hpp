@@ -1,23 +1,23 @@
 #pragma once
 
 #include <utility>
-#include "glfwpp/glfwpp.h"
+#include <glfwpp/glfwpp.h>
 
-#include "imgui.h"
+#include <imgui.h>
 
 class Application
 {
 public:
-    void Run();
+    void run();
 
 protected:
-    virtual glfw::Window Init() = 0;
-    virtual void Render() = 0;
+    virtual glfw::Window init() = 0;
+    virtual void render() = 0;
 
-    Application() : library{glfw::init()}
+    Application() : m_library{glfw::init()}
     {
     }
 
 private:
-    glfw::GlfwLibrary library;
+    glfw::GlfwLibrary m_library;
 };
