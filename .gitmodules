@@ -1,0 +1,6 @@
+[submodule "vendor/glfwpp"]
+	path = vendor/glfwpp
+	url = https://github.com/janekb04/glfwpp
+[submodule "vendor/imgui"]
+	path = vendor/imgui
+	url = https://github.com/ocornut/imgui
