@@ -31,8 +31,10 @@ public:
         return reinterpret_cast<void *>(static_cast<uintptr_t>(m_texture));
     }
 
+    void upload();
+
 private:
-    void upload(void *data);
+    void *m_data;
     int m_width;
     int m_height;
     unsigned m_texture;

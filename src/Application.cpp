@@ -5,25 +5,29 @@
 #include <backends/imgui_impl_opengl3.h>
 #include <backends/imgui_impl_glfw.h>
 
+Application::Application(int width, int height, const std::string &title)
+    : m_title{title}, m_library{glfw::init()}, m_window{width, height, m_title.c_str()}
+{
+}
+
 void Application::run()
 {
     // Imgui init
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    // Window creation
-    auto window = init();
-
     // OpenGL init
-    glfw::makeContextCurrent(window);
+    glfw::makeContextCurrent(m_window);
     gladLoadGL();
     glfw::swapInterval(0);
 
+    init();
+
     // Imgui backend init
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplGlfw_InitForOpenGL(m_window, true);
     ImGui_ImplOpenGL3_Init();
 
-    while (!window.shouldClose())
+    while (!m_window.shouldClose())
     {
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -40,7 +44,7 @@ void Application::run()
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfw::pollEvents();
-        window.swapBuffers();
+        m_window.swapBuffers();
     }
 
     // Imgui backend shutdown

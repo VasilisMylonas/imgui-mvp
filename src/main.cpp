@@ -1,43 +1,45 @@
 #include <iostream>
+#include <filesystem>
 
 #include "Application.hpp"
-
-#include <iostream>
+#include "Image.hpp"
 
 class App : public Application
 {
-    virtual glfw::Window init() override
+public:
+    App(int width, int height, const std::string &title) : Application{width, height, title}
+    {
+    }
+
+protected:
+    virtual void init() override
     {
         // Config
         ImGuiIO &io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-        // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
         ImGuiStyle &style = ImGui::GetStyle();
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 
-        glfw::WindowHints hints;
-        hints.clientApi = glfw::ClientApi::OpenGl;
-        hints.apply();
+        folderIcon.upload();
+        fileIcon.upload();
 
-        return {1280, 720, "Title"};
+        return;
     }
 
-    // Image folderIcon{"../folder-outline.png"};
-    // Image fileIcon{"../document-outline.png"};
-    //  std::filesystem::path currentDir = std::filesystem::current_path();
-    // bool showHiddenFiles = false;
+    Image folderIcon{"../folder-outline.png"};
+    Image fileIcon{"../document-outline.png"};
+    std::filesystem::path currentDir = std::filesystem::current_path();
+    bool showHiddenFiles = false;
 
     virtual void render()
     {
-        // DrawMenu();
-        // DrawFileManager();
+        ImGui::DockSpaceOverViewport();
+        DrawMenuBar();
+        DrawFileManager();
     }
 
-#if 0
     void DrawFileManager()
     {
         int columns = 8;
@@ -64,7 +66,7 @@ class App : public Application
                     }
 
                     ImGui::TableNextColumn();
-                    ImGui::ImageButton((file.is_directory() ? folderIcon : fileIcon).GetTexture(), {64, 64});
+                    ImGui::ImageButton((file.is_directory() ? folderIcon : fileIcon).texture(), {64, 64});
 
                     if (ImGui::IsItemClicked())
                     {
@@ -82,7 +84,7 @@ class App : public Application
         ImGui::End();
     }
 
-    void DrawMenu()
+    void DrawMenuBar()
     {
         if (ImGui::BeginMainMenuBar())
         {
@@ -103,34 +105,13 @@ class App : public Application
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Edit"))
-            {
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("View"))
-            {
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Tools"))
-            {
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Help"))
-            {
-                ImGui::EndMenu();
-            }
-
             ImGui::EndMainMenuBar();
         }
     }
-#endif
 };
 
 int main()
 {
-    App app;
+    App app = {1280, 720, "Main Window"};
     app.run();
 }

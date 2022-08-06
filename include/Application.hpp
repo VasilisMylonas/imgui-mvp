@@ -11,13 +11,13 @@ public:
     void run();
 
 protected:
-    virtual glfw::Window init() = 0;
+    virtual void init() = 0;
     virtual void render() = 0;
 
-    Application() : m_library{glfw::init()}
-    {
-    }
+    Application(int width, int height, const std::string &title);
 
 private:
+    std::string m_title;
     glfw::GlfwLibrary m_library;
+    glfw::Window m_window;
 };
