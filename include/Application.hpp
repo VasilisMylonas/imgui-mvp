@@ -1,23 +1,47 @@
 #pragma once
 
-#include <utility>
-#include <glfwpp/glfwpp.h>
+#include "Window.hpp"
 
-#include <imgui.h>
+#include <vector>
+#include <memory>
 
 class Application
 {
 public:
-    void run();
+    Application() : m_library{glfw::init()}
+    {
+        IMGUI_CHECKVERSION();
+    }
 
-protected:
-    virtual void init() = 0;
-    virtual void render() = 0;
+    void add_window(std::shared_ptr<IWindow> window)
+    {
+        m_windows.push_back(window);
+    }
 
-    Application(int width, int height, const std::string &title);
+    void run()
+    {
+        while (m_windows.size() != 0)
+        {
+            size_t size = m_windows.size();
+            for (size_t i = 0; i < size; i++)
+            {
+                auto &window = m_windows[i];
+                window->select();
+                window->frame_begin();
+                window->render();
+                window->frame_end();
+
+                glfw::pollEvents();
+
+                if (window->window().shouldClose())
+                {
+                    m_windows.erase(m_windows.begin() + i);
+                }
+            }
+        }
+    }
 
 private:
-    std::string m_title;
     glfw::GlfwLibrary m_library;
-    glfw::Window m_window;
+    std::vector<std::shared_ptr<IWindow>> m_windows;
 };

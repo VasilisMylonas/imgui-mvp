@@ -1,6 +1,7 @@
 #include <iostream>
 #include <filesystem>
 
+#if 0
 #include "Application.hpp"
 #include "Image.hpp"
 
@@ -84,7 +85,48 @@ protected:
         ImGui::End();
     }
 
-    void DrawMenuBar()
+
+};
+#endif
+
+#include "Application.hpp"
+#include "Controller.hpp"
+
+class IMainWindowController : public IController
+{
+public:
+    virtual void load_images() = 0;
+};
+
+class MainWindow : public Window<IMainWindowController>
+{
+public:
+    MainWindow(int width, int height, const std::string title)
+        : Window{width, height, title}
+    {
+    }
+
+    virtual void render() override
+    {
+        ImGui::DockSpaceOverViewport();
+        draw_menu_bar();
+    }
+
+    void file_open()
+    {
+        controller()->load_images();
+    }
+
+    void file_open_folder()
+    {
+    }
+
+    void file_exit()
+    {
+        window().setShouldClose(true);
+    }
+
+    void draw_menu_bar()
     {
         if (ImGui::BeginMainMenuBar())
         {
@@ -92,14 +134,17 @@ protected:
             {
                 if (ImGui::MenuItem("Open", "Ctrl+O"))
                 {
+                    file_open();
                 }
 
                 if (ImGui::MenuItem("Open Folder"))
                 {
+                    file_open_folder();
                 }
 
                 if (ImGui::MenuItem("Exit", "Alt+F4"))
                 {
+                    file_exit();
                 }
 
                 ImGui::EndMenu();
@@ -110,8 +155,34 @@ protected:
     }
 };
 
+class MainWindowController : public Controller<MainWindow, void>, public IMainWindowController
+{
+public:
+    MainWindowController(std::shared_ptr<MainWindow> view, std::shared_ptr<void> model) : Controller{view, model}
+    {
+        view->set_controller(this);
+    }
+
+    virtual void load_images() override
+    {
+        puts("Loaded images");
+    }
+};
+
+#include <assert.h>
+
 int main()
 {
-    App app = {1280, 720, "Main Window"};
-    app.run();
+    Application c;
+
+    auto model = nullptr;
+    auto view = std::make_shared<MainWindow>(1280, 720, "Hello");
+    auto controller = std::make_shared<MainWindowController>(view, model);
+
+    assert(controller->view() != nullptr);
+    assert(controller->model() == nullptr);
+    assert(controller->view()->controller() == controller.get());
+
+    c.add_window(view);
+    c.run();
 }
