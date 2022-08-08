@@ -5,43 +5,51 @@
 #include <vector>
 #include <memory>
 
-class Application
+namespace mvc
 {
-public:
-    Application() : m_library{glfw::init()}
+    class Application
     {
-        IMGUI_CHECKVERSION();
-    }
-
-    void add_window(std::shared_ptr<IWindow> window)
-    {
-        m_windows.push_back(window);
-    }
-
-    void run()
-    {
-        while (m_windows.size() != 0)
+    public:
+        Application()
         {
-            size_t size = m_windows.size();
-            for (size_t i = 0; i < size; i++)
+            glfwInit();
+            IMGUI_CHECKVERSION();
+        }
+
+        ~Application()
+        {
+            glfwTerminate();
+        }
+
+        void add_window(std::shared_ptr<IWindow> window)
+        {
+            m_windows.push_back(window);
+        }
+
+        void run()
+        {
+            while (m_windows.size() != 0)
             {
-                auto &window = m_windows[i];
-                window->select();
-                window->frame_begin();
-                window->render();
-                window->frame_end();
-
-                glfw::pollEvents();
-
-                if (window->window().shouldClose())
+                size_t size = m_windows.size();
+                for (size_t i = 0; i < size; i++)
                 {
-                    m_windows.erase(m_windows.begin() + i);
+                    auto &window = m_windows[i];
+                    window->select();
+                    window->frame_begin();
+                    window->render();
+                    window->frame_end();
+
+                    glfwPollEvents();
+
+                    if (glfwWindowShouldClose(window->window()))
+                    {
+                        m_windows.erase(m_windows.begin() + i);
+                    }
                 }
             }
         }
-    }
 
-private:
-    glfw::GlfwLibrary m_library;
-    std::vector<std::shared_ptr<IWindow>> m_windows;
-};
+    private:
+        std::vector<std::shared_ptr<IWindow>> m_windows;
+    };
+} // namespace mvc

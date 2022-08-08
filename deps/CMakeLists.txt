@@ -9,9 +9,8 @@ add_library(imgui
 )
 target_include_directories(imgui PUBLIC imgui imgui/backends)
 
-# GLFWPP
-set(GLFWPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE) # disable building GLFWPP examples
-add_subdirectory(glfwpp)
+# GLFW
+add_subdirectory(glfw)
 
 # GLAD
 add_library(glad glad/src/glad.c)
