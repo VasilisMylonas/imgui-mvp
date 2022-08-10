@@ -1,3 +1,3 @@
-# imgui-mvc
+# imgui-mvp
 
-MVC library for use with the ImGui/GLFW/OpenGL stack.
+MVP library for use with the ImGui/GLFW/OpenGL stack.
