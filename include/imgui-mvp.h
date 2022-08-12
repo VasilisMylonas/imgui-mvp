@@ -15,6 +15,27 @@
 
 namespace mvp
 {
+    namespace detail
+    {
+        template <class TInterface>
+        static std::unique_ptr<TInterface> get_service()
+        {
+            auto ctor = reinterpret_cast<TInterface *(*)()>(service_registry[std::type_index{typeid(TInterface)}]);
+
+            if (ctor == nullptr)
+            {
+                std::string s{"No registered class for interface "};
+                s.append(typeid(TInterface).name());
+
+                throw std::logic_error{s};
+            }
+
+            return std::unique_ptr<TInterface>{ctor()};
+        }
+
+        static inline std::map<std::type_index, void *(*)()> service_registry;
+    } // namespace detail
+
     template <class TInterface, class TImpl>
     static void register_service()
     {
@@ -229,25 +250,4 @@ namespace mvp
     private:
         std::vector<std::shared_ptr<Window>> m_windows;
     };
-
-    namespace detail
-    {
-        template <class TInterface>
-        static std::unique_ptr<TInterface> get_service()
-        {
-            auto ctor = reinterpret_cast<TInterface *(*)()>(service_registry[std::type_index{typeid(TInterface)}]);
-
-            if (ctor == nullptr)
-            {
-                std::string s{"No registered class for interface "};
-                s.append(typeid(TInterface).name());
-
-                throw std::logic_error{s};
-            }
-
-            return std::unique_ptr<TInterface>{ctor()};
-        }
-
-        static inline std::map<std::type_index, void *(*)()> service_registry;
-    } // namespace detail
 } // namespace mvp
