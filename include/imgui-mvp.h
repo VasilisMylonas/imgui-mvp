@@ -2,8 +2,10 @@
 
 #include <vector>
 #include <memory>
-#include <vector>
 #include <string>
+#include <map>
+#include <typeindex>
+#include <stdexcept>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -13,13 +15,41 @@
 
 namespace mvp
 {
+    template <class TInterface, class TImpl>
+    static void register_service()
+    {
+        TInterface *(*creator)() = []()
+        {
+            return static_cast<TInterface *>(new TImpl{});
+        };
+
+        detail::service_registry[std::type_index{typeid(TInterface)}] = reinterpret_cast<void *(*)()>(creator);
+    }
+
+    template <class TInterface>
+    class Service
+    {
+    public:
+        TInterface *operator->()
+        {
+            return service.operator->();
+        }
+
+    private:
+        std::unique_ptr<TInterface> service = detail::get_service<TInterface>();
+    };
+
     template <class TView, class TModel>
     class Presenter
     {
     public:
-        Presenter(TView *view, TModel *model)
+        void connect(TView *view)
         {
             m_view = view;
+        }
+
+        void connect(TModel *model)
+        {
             m_model = model;
         }
 
@@ -44,15 +74,15 @@ namespace mvp
         }
 
     private:
-        TView *m_view;
-        TModel *m_model;
+        TView *m_view = nullptr;
+        TModel *m_model = nullptr;
     };
 
     template <class TView>
     class Presenter<TView, void>
     {
     public:
-        Presenter(TView *view)
+        void connect(TView *view)
         {
             m_view = view;
         }
@@ -68,7 +98,7 @@ namespace mvp
         }
 
     private:
-        TView *m_view;
+        TView *m_view = nullptr;
     };
 
     class View
@@ -199,4 +229,25 @@ namespace mvp
     private:
         std::vector<std::shared_ptr<Window>> m_windows;
     };
+
+    namespace detail
+    {
+        template <class TInterface>
+        static std::unique_ptr<TInterface> get_service()
+        {
+            auto ctor = reinterpret_cast<TInterface *(*)()>(service_registry[std::type_index{typeid(TInterface)}]);
+
+            if (ctor == nullptr)
+            {
+                std::string s{"No registered class for interface "};
+                s.append(typeid(TInterface).name());
+
+                throw std::logic_error{s};
+            }
+
+            return std::unique_ptr<TInterface>{ctor()};
+        }
+
+        static inline std::map<std::type_index, void *(*)()> service_registry;
+    } // namespace detail
 } // namespace mvp
