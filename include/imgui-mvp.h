@@ -15,16 +15,36 @@
 
 namespace mvp
 {
+    template <class TInterface>
+    using Factory = TInterface *(*)();
+
+    template <class TInterface, class TImpl>
+    TInterface *default_factory()
+    {
+        return static_cast<TInterface *>(new TImpl{});
+    }
+
+    template <class TInterface, class TImpl>
+    TInterface *singleton_factory()
+    {
+        static TInterface *instance;
+        if (instance == nullptr)
+        {
+            instance = default_factory<TInterface, TImpl>();
+        }
+        return instance;
+    }
+
     namespace detail
     {
-        static inline std::map<std::type_index, void *(*)()> service_registry;
+        inline std::map<std::type_index, Factory<void>> service_registry;
 
         template <class TInterface>
-        static std::unique_ptr<TInterface> get_service()
+        std::shared_ptr<TInterface> get_service()
         {
-            auto ctor = reinterpret_cast<TInterface *(*)()>(service_registry[std::type_index{typeid(TInterface)}]);
+            auto factory = reinterpret_cast<Factory<TInterface>>(service_registry[std::type_index{typeid(TInterface)}]);
 
-            if (ctor == nullptr)
+            if (factory == nullptr)
             {
                 std::string s{"No registered class for interface "};
                 s.append(typeid(TInterface).name());
@@ -32,19 +52,20 @@ namespace mvp
                 throw std::logic_error{s};
             }
 
-            return std::unique_ptr<TInterface>{ctor()};
+            return std::shared_ptr<TInterface>{factory()};
         }
     } // namespace detail
 
     template <class TInterface, class TImpl>
-    static void register_service()
+    void register_service(Factory<TInterface> factory = default_factory<TInterface, TImpl>)
     {
-        TInterface *(*creator)() = []()
-        {
-            return static_cast<TInterface *>(new TImpl{});
-        };
+        detail::service_registry[std::type_index{typeid(TInterface)}] = reinterpret_cast<Factory<void>>(factory);
+    }
 
-        detail::service_registry[std::type_index{typeid(TInterface)}] = reinterpret_cast<void *(*)()>(creator);
+    template <class TInterface, class TImpl>
+    void register_singleton(Factory<TInterface> factory = singleton_factory<TInterface, TImpl>)
+    {
+        detail::service_registry[std::type_index{typeid(TInterface)}] = reinterpret_cast<Factory<void>>(factory);
     }
 
     template <class TInterface>
@@ -57,7 +78,7 @@ namespace mvp
         }
 
     private:
-        std::unique_ptr<TInterface> service = detail::get_service<TInterface>();
+        std::shared_ptr<TInterface> service = detail::get_service<TInterface>();
     };
 
     template <class TView, class TModel>
