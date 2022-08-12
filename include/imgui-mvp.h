@@ -17,6 +17,8 @@ namespace mvp
 {
     namespace detail
     {
+        static inline std::map<std::type_index, void *(*)()> service_registry;
+
         template <class TInterface>
         static std::unique_ptr<TInterface> get_service()
         {
@@ -32,8 +34,6 @@ namespace mvp
 
             return std::unique_ptr<TInterface>{ctor()};
         }
-
-        static inline std::map<std::type_index, void *(*)()> service_registry;
     } // namespace detail
 
     template <class TInterface, class TImpl>
