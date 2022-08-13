@@ -223,35 +223,20 @@ namespace mvp
     class Application
     {
     public:
-        Application()
+        Application &run(std::shared_ptr<Window> window)
         {
-            glfwInit();
+            windows().push_back(window);
+            return run();
         }
 
-        ~Application()
+        Application &run()
         {
-            glfwTerminate();
-        }
-
-        void add_window(std::shared_ptr<Window> window)
-        {
-            m_windows.push_back(window);
-        }
-
-        void run(std::shared_ptr<Window> window)
-        {
-            add_window(window);
-            run();
-        }
-
-        void run()
-        {
-            while (m_windows.size() != 0)
+            while (windows().size() != 0)
             {
-                size_t size = m_windows.size();
+                size_t size = windows().size();
                 for (size_t i = 0; i < size; i++)
                 {
-                    auto &window = m_windows[i];
+                    auto &window = windows()[i];
 
                     window->select();
                     window->frame_begin();
@@ -262,13 +247,46 @@ namespace mvp
 
                     if (glfwWindowShouldClose(window->handle()))
                     {
-                        m_windows.erase(m_windows.begin() + i);
+                        windows().erase(windows().begin() + i);
                     }
                 }
             }
+
+            return *this;
         }
 
+        const std::vector<std::shared_ptr<Window>> &windows() const
+        {
+            return m_windows;
+        }
+
+        std::vector<std::shared_ptr<Window>> &windows()
+        {
+            return m_windows;
+        }
+
+        static Application &current()
+        {
+            return s_instance;
+        }
+
+        Application(const Application &) = delete;
+        Application &operator=(const Application &) = delete;
+
     private:
+        Application()
+        {
+            glfwInit();
+        }
+
+        ~Application()
+        {
+            glfwTerminate();
+        }
+
         std::vector<std::shared_ptr<Window>> m_windows;
+        static Application s_instance;
     };
+
+    inline Application Application::s_instance;
 } // namespace mvp
