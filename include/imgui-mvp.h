@@ -7,6 +7,12 @@
 #include <typeindex>
 #include <stdexcept>
 
+#include <cstdlib>
+#include <cstring>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -115,6 +121,8 @@ namespace mvp
             return *m_model;
         }
 
+        virtual ~Presenter() = default;
+
     private:
         TView *m_view = nullptr;
         TModel *m_model = nullptr;
@@ -139,6 +147,8 @@ namespace mvp
             return *m_view;
         }
 
+        virtual ~Presenter() = default;
+
     private:
         TView *m_view = nullptr;
     };
@@ -147,6 +157,7 @@ namespace mvp
     {
     public:
         virtual void render() = 0;
+        virtual ~View() = default;
     };
 
     class Window : public View
@@ -171,7 +182,7 @@ namespace mvp
             s_counter++;
         }
 
-        ~Window()
+        virtual ~Window()
         {
             s_counter--;
 
@@ -179,7 +190,6 @@ namespace mvp
             ImGui_ImplGlfw_Shutdown();
 
             ImGui::DestroyContext(m_context);
-
             glfwDestroyWindow(m_window);
         }
 
@@ -223,14 +233,10 @@ namespace mvp
     class Application
     {
     public:
-        Application &run(std::shared_ptr<Window> window)
-        {
-            windows().push_back(window);
-            return run();
-        }
-
         Application &run()
         {
+            on_startup();
+
             while (windows().size() != 0)
             {
                 size_t size = windows().size();
@@ -252,8 +258,27 @@ namespace mvp
                 }
             }
 
+            on_shutdown();
+
             return *this;
         }
+
+        Application()
+        {
+            glfwInit();
+        }
+
+        virtual ~Application()
+        {
+            glfwTerminate();
+        }
+
+        Application(const Application &) = delete;
+        Application &operator=(const Application &) = delete;
+
+    protected:
+        virtual void on_startup() = 0;
+        virtual void on_shutdown() = 0;
 
         const std::vector<std::shared_ptr<Window>> &windows() const
         {
@@ -265,28 +290,143 @@ namespace mvp
             return m_windows;
         }
 
-        static Application &current()
-        {
-            return s_instance;
-        }
-
-        Application(const Application &) = delete;
-        Application &operator=(const Application &) = delete;
-
     private:
-        Application()
-        {
-            glfwInit();
-        }
-
-        ~Application()
-        {
-            glfwTerminate();
-        }
-
         std::vector<std::shared_ptr<Window>> m_windows;
-        static Application s_instance;
     };
 
-    inline Application Application::s_instance;
+    class Image
+    {
+    public:
+        Image(const std::vector<unsigned char> &bytes)
+        {
+            m_data = stbi_load_from_memory(bytes.data(), bytes.size(), &m_width, &m_height, &m_comp, 0);
+            create();
+        }
+
+        Image(const std::string &path) : m_path{path}
+        {
+            m_data = stbi_load(path.c_str(), &m_width, &m_height, &m_comp, 0);
+            create();
+        }
+
+        Image(const Image &other)
+        {
+            m_width = other.m_width;
+            m_height = other.m_height;
+            m_comp = other.m_comp;
+
+            m_path = other.m_path;
+
+            const std::size_t size = m_width * m_height * m_comp;
+            m_data = std::memcpy(std::malloc(size), other.m_data, size);
+
+            create();
+        }
+
+        Image(Image &&other)
+        {
+            m_width = other.m_width;
+            m_height = other.m_height;
+            m_comp = other.m_comp;
+
+            m_path = std::move(other.m_path);
+            m_data = other.m_data;
+            m_texture = other.m_texture;
+
+            other.m_data = nullptr;
+            other.m_texture = 0;
+        }
+
+        Image &operator=(const Image &other)
+        {
+            glDeleteTextures(1, &m_texture);
+            stbi_image_free(m_data);
+
+            m_width = other.m_width;
+            m_height = other.m_height;
+            m_comp = other.m_comp;
+
+            m_path = other.m_path;
+
+            const std::size_t size = m_width * m_height * m_comp;
+            m_data = std::memcpy(std::malloc(size), other.m_data, size);
+
+            create();
+
+            return *this;
+        }
+
+        Image &operator=(Image &&other)
+        {
+            glDeleteTextures(1, &m_texture);
+            stbi_image_free(m_data);
+
+            m_width = other.m_width;
+            m_height = other.m_height;
+            m_comp = other.m_comp;
+
+            m_path = std::move(other.m_path);
+            m_data = other.m_data;
+            m_texture = other.m_texture;
+
+            other.m_data = nullptr;
+            other.m_texture = 0;
+
+            return *this;
+        }
+
+        ~Image()
+        {
+            glDeleteTextures(1, &m_texture);
+            stbi_image_free(m_data);
+        }
+
+        int width() const
+        {
+            return m_width;
+        }
+
+        int height() const
+        {
+            return m_height;
+        }
+
+        const std::string &path() const
+        {
+            return m_path;
+        }
+
+        void *texture() const
+        {
+            return reinterpret_cast<void *>(static_cast<uintptr_t>(m_texture));
+        }
+
+    private:
+        void create()
+        {
+            if (m_data == nullptr)
+            {
+                throw std::runtime_error("Could not load image");
+            }
+
+            glGenTextures(1, &m_texture);
+            glBindTexture(GL_TEXTURE_2D, m_texture);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_data);
+        }
+
+        int m_width;
+        int m_height;
+        int m_comp;
+        void *m_data;
+        unsigned m_texture;
+        std::string m_path;
+    };
+
 } // namespace mvp
