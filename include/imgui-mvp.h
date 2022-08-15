@@ -10,6 +10,14 @@
 #include <cstdlib>
 #include <cstring>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#pragma GCC diagnostic ignored "-Wcast-align"
+#pragma GCC diagnostic ignored "-Wpadded"
+#pragma GCC diagnostic ignored "-Wimplicit-int-conversion"
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -18,6 +26,8 @@
 #include <imgui.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <backends/imgui_impl_glfw.h>
+
+#pragma GCC diagnostic pop
 
 namespace mvp
 {
@@ -275,6 +285,8 @@ namespace mvp
 
         Application(const Application &) = delete;
         Application &operator=(const Application &) = delete;
+        Application(Application &&) = delete;
+        Application &operator=(Application &&) = delete;
 
     protected:
         virtual void on_startup() = 0;
@@ -297,9 +309,16 @@ namespace mvp
     class Image
     {
     public:
-        Image(const std::vector<unsigned char> &bytes)
+        Image(const std::vector<std::byte> &bytes)
         {
-            m_data = stbi_load_from_memory(bytes.data(), bytes.size(), &m_width, &m_height, &m_comp, 0);
+            m_data = stbi_load_from_memory(
+                reinterpret_cast<const unsigned char *>(bytes.data()),
+                static_cast<int>(bytes.size()),
+                &m_width,
+                &m_height,
+                &m_comp,
+                0);
+
             create();
         }
 
@@ -311,74 +330,31 @@ namespace mvp
 
         Image(const Image &other)
         {
-            m_width = other.m_width;
-            m_height = other.m_height;
-            m_comp = other.m_comp;
-
-            m_path = other.m_path;
-
-            const std::size_t size = m_width * m_height * m_comp;
-            m_data = std::memcpy(std::malloc(size), other.m_data, size);
-
-            create();
+            copy(other);
         }
 
         Image(Image &&other)
         {
-            m_width = other.m_width;
-            m_height = other.m_height;
-            m_comp = other.m_comp;
-
-            m_path = std::move(other.m_path);
-            m_data = other.m_data;
-            m_texture = other.m_texture;
-
-            other.m_data = nullptr;
-            other.m_texture = 0;
+            move(std::move(other));
         }
 
         Image &operator=(const Image &other)
         {
-            glDeleteTextures(1, &m_texture);
-            stbi_image_free(m_data);
-
-            m_width = other.m_width;
-            m_height = other.m_height;
-            m_comp = other.m_comp;
-
-            m_path = other.m_path;
-
-            const std::size_t size = m_width * m_height * m_comp;
-            m_data = std::memcpy(std::malloc(size), other.m_data, size);
-
-            create();
-
+            destroy();
+            copy(other);
             return *this;
         }
 
         Image &operator=(Image &&other)
         {
-            glDeleteTextures(1, &m_texture);
-            stbi_image_free(m_data);
-
-            m_width = other.m_width;
-            m_height = other.m_height;
-            m_comp = other.m_comp;
-
-            m_path = std::move(other.m_path);
-            m_data = other.m_data;
-            m_texture = other.m_texture;
-
-            other.m_data = nullptr;
-            other.m_texture = 0;
-
+            destroy();
+            move(std::move(other));
             return *this;
         }
 
         ~Image()
         {
-            glDeleteTextures(1, &m_texture);
-            stbi_image_free(m_data);
+            destroy();
         }
 
         int width() const
@@ -391,6 +367,11 @@ namespace mvp
             return m_height;
         }
 
+        int comp() const
+        {
+            return m_comp;
+        }
+
         const std::string &path() const
         {
             return m_path;
@@ -401,7 +382,48 @@ namespace mvp
             return reinterpret_cast<void *>(static_cast<uintptr_t>(m_texture));
         }
 
+        std::size_t size() const
+        {
+            return static_cast<std::size_t>(m_width * m_height * m_comp);
+        }
+
+        std::byte *data()
+        {
+            return reinterpret_cast<std::byte *>(m_data);
+        }
+
     private:
+        void destroy()
+        {
+            glDeleteTextures(1, &m_texture);
+            stbi_image_free(m_data);
+        }
+
+        void move(Image &&other)
+        {
+            m_width = other.m_width;
+            m_height = other.m_height;
+            m_comp = other.m_comp;
+
+            m_path = std::move(other.m_path);
+            m_data = other.m_data;
+            m_texture = other.m_texture;
+
+            other.m_data = nullptr;
+            other.m_texture = 0;
+        }
+
+        void copy(const Image &other)
+        {
+            m_width = other.m_width;
+            m_height = other.m_height;
+            m_comp = other.m_comp;
+
+            m_path = other.m_path;
+            m_data = std::memcpy(std::malloc(size()), other.m_data, size());
+            create();
+        }
+
         void create()
         {
             if (m_data == nullptr)
@@ -421,12 +443,12 @@ namespace mvp
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_data);
         }
 
+        std::string m_path;
+        void *m_data;
+        unsigned m_texture;
         int m_width;
         int m_height;
         int m_comp;
-        void *m_data;
-        unsigned m_texture;
-        std::string m_path;
     };
 
 } // namespace mvp
