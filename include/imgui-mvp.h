@@ -5,17 +5,16 @@
 #include <string>
 #include <map>
 #include <typeindex>
-#include <stdexcept>
+#include <exception>
+#include <source_location>
 
 #include <cstdlib>
 #include <cstring>
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-#pragma GCC diagnostic ignored "-Wcast-qual"
 #pragma GCC diagnostic ignored "-Wcast-align"
-#pragma GCC diagnostic ignored "-Wpadded"
-#pragma GCC diagnostic ignored "-Wimplicit-int-conversion"
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -51,6 +50,56 @@ namespace mvp
         return instance;
     }
 
+    class Exception
+    {
+    public:
+        Exception(const std::string &message, const std::source_location &location)
+            : m_location{location}, m_message{message}
+        {
+        }
+
+        const std::string &what() const
+        {
+            return m_message;
+        }
+
+        const std::source_location &where() const
+        {
+            return m_location;
+        }
+
+    private:
+        std::source_location m_location;
+        std::string m_message;
+    };
+
+    class MissingService : public Exception
+    {
+    public:
+        MissingService(const std::type_info &type, const std::source_location &location = std::source_location::current())
+            : Exception(std::string{"No service registered for interface "} + type.name(), location)
+        {
+        }
+    };
+
+    class ApplicationFailure : public Exception
+    {
+    public:
+        ApplicationFailure(const std::string &message, const std::source_location &location = std::source_location::current())
+            : Exception(message, location)
+        {
+        }
+    };
+
+    class ImageLoadFailure : public Exception
+    {
+    public:
+        ImageLoadFailure(const std::string &path, const std::source_location &location = std::source_location::current())
+            : Exception(std::string{"Failed to load image: "} + path, location)
+        {
+        }
+    };
+
     namespace detail
     {
         inline std::map<std::type_index, Factory<void>> service_registry;
@@ -62,10 +111,7 @@ namespace mvp
 
             if (factory == nullptr)
             {
-                std::string s{"No registered class for interface "};
-                s.append(typeid(TInterface).name());
-
-                throw std::logic_error{s};
+                throw MissingService(typeid(TInterface));
             }
 
             return std::shared_ptr<TInterface>{factory()};
@@ -256,7 +302,23 @@ namespace mvp
 
                     window->select();
                     window->frame_begin();
-                    window->render();
+
+                    std::exception_ptr e;
+
+                    try
+                    {
+                        window->render();
+                    }
+                    catch (...)
+                    {
+                        e = std::current_exception();
+                    }
+
+                    if (e)
+                    {
+                        on_error(e);
+                    }
+
                     window->frame_end();
 
                     glfwPollEvents();
@@ -275,7 +337,13 @@ namespace mvp
 
         Application()
         {
-            glfwInit();
+            if (!glfwInit())
+            {
+                const char *description;
+                glfwGetError(&description);
+
+                throw ApplicationFailure{description};
+            }
         }
 
         virtual ~Application()
@@ -289,6 +357,11 @@ namespace mvp
         Application &operator=(Application &&) = delete;
 
     protected:
+        virtual void on_error(std::exception_ptr e)
+        {
+            std::rethrow_exception(e);
+        }
+
         virtual void on_startup() = 0;
         virtual void on_shutdown() = 0;
 
@@ -428,7 +501,7 @@ namespace mvp
         {
             if (m_data == nullptr)
             {
-                throw std::runtime_error("Could not load image");
+                throw ImageLoadFailure{m_path};
             }
 
             glGenTextures(1, &m_texture);
